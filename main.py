@@ -1,48 +1,67 @@
-from bs4 import BeautifulSoup
-from googletrans import Translator
-import requests
+from selenium import webdriver
+from selenium.webdriver import Keys
+from selenium.webdriver.common.by import By
+import time
 
-def get_english_words():
-    url = "http://randomword.com/"
+from selenium.webdriver.common.devtools.v85.dom import get_attributes
+
+browser = webdriver.Chrome()
+browser.get("https://ru.wikipedia.org/wiki/%D0%97%D0%B0%D0%B3%D0%BB%D0%B0%D0%B2%D0%BD%D0%B0%D1%8F_%D1%81%D1%82%D1%80%D0%B0%D0%BD%D0%B8%D1%86%D0%B0")
+
+assert "Википедия" in browser.title
+print("Добро пожаловать на страницу Википедия")
+
+user_request = input("Введите запрос для поиска: ")
+
+search_box = browser.find_element(By.ID, "searchInput")
+search_box.send_keys(user_request)
+search_box.send_keys(Keys.RETURN)
+time.sleep(3)
+
+def list_paragraphs():
+    paragraphs = browser.find_elements(By.TAG_NAME, "p")
+    for paragraph in paragraphs:
+        print(paragraph.text)
+        user_input = input("\nНажмите Enter для следующего параграфа или 'q' для выхода: ")
+        if user_input == 'q':
+            return
+
+def follow_link():
+    inside_links = []
+    for link in browser.find_elements(By.TAG_NAME, "a"):
+        href = link.get_attribute("href")
+        if href and "/wiki/" in href:
+            inside_links.append((link.text, href))
+
+    print("\nДоступные ссылки:")
+    for i, (text, href) in enumerate(inside_links[:5]):
+        print(f"{i + 1}. {text} - {href}")
+
+    choice = input("Выберите номер ссылки или 'q' для выхода: ")
+
+    if choice == 'q':
+        return
+
     try:
-        response = requests.get(url)
+        choice = int(choice)
+        if 0 < choice <= len(inside_links):
+           browser.get(inside_links[choice - 1][1])
+        time.sleep(3)
 
-        soup = BeautifulSoup(response.content, "html.parser")
-        english_words = soup.find("div", id="random_word").text.strip()
-        word_definition = soup.find("div", id="random_word_definition").text.strip()
-        return {
-            "english_words": english_words,
-            "word_definition": word_definition
-        }
-    except:
-        print("Произошла ошибка")
+    except ValueError:
+        print("Некорректный ввод, попробуйте снова.")
 
+while True:
+    print("\n1. Листать параграфы\n2. Перейти на связанную страницу\n3. Выйти")
+    choice = input("Выберите действие: ")
 
-def word_game():
-    print("Добро пожаловать в игру!")
-    translator = Translator()
-
-    while True:
-        word_dict = get_english_words()
-        word = word_dict.get("english_words")
-        word_definition = word_dict.get("word_definition")
-
-        transtaled_word = translator.translate(word,scr="eng", dest="ru").text
-        translated_definition = translator.translate(word_definition, scr="eng", dest="ru").text
-
-        print (f"Значение слова - {translated_definition}")
-        user = input("Что это за слово? (введите на русском) ")
-        if user == transtaled_word:
-            print("Все верно!")
-        else:
-            print(f"Ответ неверный, было загадано это слово - {transtaled_word}")
-
-        play_again = input("Хотите сыграть еще раз? y/n")
-        if play_again != "y":
-            print("Спасибо за игру!")
-            break
-
-word_game()
-
-
-
+    if choice == "1":
+        list_paragraphs()
+    elif choice == "2":
+        follow_link()
+    elif choice == "3":
+        print("Выход из программы.")
+        browser.quit()
+        break
+    else:
+        print("Некорректный ввод, попробуйте снова.")
